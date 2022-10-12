@@ -1,3 +1,30 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  *,
+  *::after,
+  *::before {
+    padding: 0;
+  }
+
+  a,
+  button,
+  input {
+    all: unset;
+  }
+
+  a,
+  button {
+    cursor: pointer;
+  }
+
+  input {
+    cursor: text;
+  }
+
+  body {
+    @apply bg-primary-bg py-4 px-10 font-primary;
+  }
+}
