@@ -1,4 +1,9 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { useToast } from "../../contexts/Toast.context";
+import { baseAxiosInstance } from "../../services/baseInstance";
+import { OTPStates, ToastTypes, VerificationStates } from "../../types";
+import { VerifiedScreen } from "../verified_screen/VerifiedScreen";
+import axios from "axios";
 
 const initialCooldownPeriod = 30;
 
@@ -15,19 +20,46 @@ export function OTPScreen({
   );
   const allInputsRefs = useRef<HTMLInputElement[]>([]);
   const cooldownIntervalID = useRef<NodeJS.Timer | undefined>(undefined);
+  const { setToastAttributes } = useToast();
+  const [verificationStatus, setVerificationStatus] =
+    useState<VerificationStates>(VerificationStates.UNVERIFIED);
+  const [otpStatus, setOTPStatus] = useState<OTPStates>(OTPStates.SENDING);
 
   useEffect(() => {
-    allInputsRefs.current[0]?.focus();
-    cooldownIntervalID.current = setInterval(() => {
-      setCooldownPeriod((prev) => {
-        if (prev === 1) {
-          clearInterval(cooldownIntervalID.current);
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    sendOTP();
     return () => clearInterval(cooldownIntervalID.current);
   }, []);
+
+  useEffect(() => {
+    if (cooldownPeriod === 0) clearInterval(cooldownIntervalID.current);
+  }, [cooldownPeriod]);
+
+  async function sendOTP() {
+    try {
+      setOTPStatus(OTPStates.SENDING);
+      await baseAxiosInstance().post("/login", {
+        data: { phone: "+91" + phoneNumber },
+      });
+      setOTPStatus(OTPStates.SENT);
+      setToastAttributes({
+        text: "OTP sent to your phone number.",
+        type: ToastTypes.NORMAL,
+      });
+      cooldownIntervalID.current = setInterval(() => {
+        setCooldownPeriod((prev) => prev - 1);
+      }, 1000);
+    } catch (err: any) {
+      console.error(err);
+      setOTPStatus(OTPStates.FAILED_TO_SEND);
+      const errorMessage = axios.isAxiosError(err)
+        ? err.response?.data?.message
+        : "Something went wrong.";
+      setToastAttributes({
+        text: errorMessage,
+        type: ToastTypes.ERROR,
+      });
+    }
+  }
 
   function onChangeHandler(e: ChangeEvent<HTMLInputElement>, index: number) {
     const currentInput = allInputsRefs.current.map((input) => input.value);
@@ -47,25 +79,42 @@ export function OTPScreen({
   }
 
   function resendOTP() {
-    clearInterval(cooldownIntervalID.current);
-    setCooldownPeriod(initialCooldownPeriod);
-    cooldownIntervalID.current = setInterval(() => {
-      setCooldownPeriod((prev) => {
-        if (prev === 1) {
-          clearInterval(cooldownIntervalID.current);
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    resetInputs();
+    sendOTP();
   }
 
-  function verifyOTP() {}
+  async function verifyOTP() {
+    try {
+      setVerificationStatus(VerificationStates.VERIFING);
+      await baseAxiosInstance().post("/login/verify", {
+        data: { otp, phone: "+91" + phoneNumber },
+      });
+      setToastAttributes({ text: "OTP verified.", type: ToastTypes.SUCCESS });
+      setTimeout(
+        () => setVerificationStatus(VerificationStates.VERIFIED),
+        3000
+      );
+    } catch (err: any) {
+      console.error(err);
+      setVerificationStatus(VerificationStates.UNVERIFIED);
+      const errorMessage = axios.isAxiosError(err)
+        ? err.response?.data?.message
+        : "Something went wrong.";
+      setToastAttributes({
+        text: errorMessage,
+        type: ToastTypes.ERROR,
+      });
+    }
+  }
+
+  if (verificationStatus === VerificationStates.VERIFIED)
+    return <VerifiedScreen phoneNumber={phoneNumber} />;
 
   return (
     <div>
       <div>
         <div className="mb-3 font-semibold opacity-70 text-end">
-          Sent to {phoneNumber}
+          Your phone number is {phoneNumber}
         </div>
         <div className=" flex gap-4">
           {Array.from(Array(6)).map((value, index) => (
@@ -82,26 +131,40 @@ export function OTPScreen({
             />
           ))}
         </div>
-        <div className="my-3 flex justify-between font-medium">
-          <button
-            disabled={!!cooldownPeriod}
-            className={`underline ${cooldownPeriod ? "opacity-60" : ""}`}
-            onClick={() => resendOTP()}
-          >
-            {!cooldownPeriod ? "Resend OTP" : `Resend in ${cooldownPeriod}s`}
-          </button>
+        <div className="my-3 flex justify-between">
+          {(() => {
+            if (otpStatus === OTPStates.SENDING) {
+              return <span>Sending OTP...</span>;
+            } else if (otpStatus === OTPStates.FAILED_TO_SEND) {
+              return <span>Could not send OTP</span>;
+            }
+            return (
+              <button
+                disabled={!!cooldownPeriod}
+                className="underline"
+                onClick={() => resendOTP()}
+              >
+                {!cooldownPeriod
+                  ? "Resend OTP"
+                  : `Resend in ${cooldownPeriod}s`}
+              </button>
+            );
+          })()}
           <button className="underline" onClick={() => resetInputs()}>
             Reset
           </button>
         </div>
       </div>
       <button
-        disabled={otp.length !== 6}
-        className={`btn-primary w-full my-3 box-border  ${
-          otp.length < 6 ? "bg-light-grey text-[#fff]" : ""
-        }`}
+        disabled={
+          otp.length !== 6 || verificationStatus === VerificationStates.VERIFING
+        }
+        className="btn-primary w-full my-3 box-border"
+        onClick={() => verifyOTP()}
       >
-        Confirm OTP
+        {verificationStatus === VerificationStates.VERIFING
+          ? "Verifing..."
+          : "Confirm OTP"}
       </button>
       <button
         className="btn-secondary w-full box-border"

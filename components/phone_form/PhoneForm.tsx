@@ -9,11 +9,6 @@ export function PhoneForm({
 }) {
   const [phoneNumber, setPhoneNumber] = useState<string>("");
 
-  function sendOTP() {
-    phoneNumberRef.current = phoneNumber;
-    toNextScreenFunc();
-  }
-
   return (
     <div className="flex flex-col gap-4 justify-center items-center">
       <input
@@ -32,8 +27,13 @@ export function PhoneForm({
         }}
       />
       <button
+        disabled={phoneNumber.length !== 10}
         className="btn-primary w-full box-border"
-        onClick={() => sendOTP()}
+        onClick={() => {
+          if (phoneNumber.length !== 10) return;
+          phoneNumberRef.current = phoneNumber;
+          toNextScreenFunc();
+        }}
       >
         Send OTP
       </button>

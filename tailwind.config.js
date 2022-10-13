@@ -24,6 +24,7 @@ module.exports = {
         "success-green": "#3ba23d",
       },
       height: {
+        main: "calc(100vh - calc(1rem * 2))",
         "otp-input": "clamp(1.5rem, 1.3rem + 2vw, 2.5rem)",
       },
       padding: {
