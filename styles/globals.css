@@ -6,6 +6,7 @@
   *,
   *::after,
   *::before {
+    box-sizing: border-box;
     padding: 0;
   }
 
@@ -25,6 +26,14 @@
   }
 
   body {
-    @apply bg-primary-bg py-4 px-10 font-primary;
+    @apply bg-primary-bg text-primary-text py-body-y px-body-x font-primary min-h-screen font-normal;
+  }
+
+  .btn-primary {
+    @apply py-btn-y px-btn-x rounded-btn-input bg-accent text-accent-text text-sm font-semibold text-center transition duration-200 ease-in-out hover:scale-102 disabled:pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply border-2 border-accent border-solid rounded-btn-input font-semibold text-sm py-btn-y px-btn-x text-center;
   }
 }
